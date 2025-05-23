@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hide & Seek Zone</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .screen {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #4ecdc4, #2ed573);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff4757, #c44569);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-group {
+            margin: 15px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #ff6b6b;
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+        }
+
+        #map {
+            height: 300px;
+            width: 100%;
+            border-radius: 15px;
+            margin: 15px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .game-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .info-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            color: #ff6b6b;
+        }
+
+        .info-card p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .players-list {
+            margin: 20px 0;
+        }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .player-status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-safe {
+            background: #2ed573;
+            color: white;
+        }
+
+        .status-danger {
+            background: #ff4757;
+            color: white;
+        }
+
+        .status-eliminated {
+            background: #747d8c;
+            color: white;
+        }
+
+        .share-section {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .share-code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 10px 0;
+        }
+
+        .zone-timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 77, 87, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        .location-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .game-info {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Hide & Seek Zone</h1>
+            <p>Nascondino con zona che si restringe</p>
+        </div>
+
+        <!-- Schermata Principale -->
+        <div id="mainScreen" class="screen active">
+            <div class="card">
+                <h2>🎮 Modalità di Gioco</h2>
+                <button class="btn btn-primary" onclick="createGame()">🎯 Crea Partita</button>
+                <button class="btn btn-secondary" onclick="showJoinScreen()">🔗 Unisciti a Partita</button>
+            </div>
+        </div>
+
+        <!-- Schermata Creazione Partita -->
+        <div id="createScreen" class="screen">
+            <div class="card">
+                <h2>🎯 Crea Nuova Partita</h2>
+                
+                <div class="input-group">
+                    <label>🏷️ Nome Giocatore</label>
+                    <input type="text" id="playerName" placeholder="Inserisci il tuo nome">
+                </div>
+
+                <div class="input-group">
+                    <label>📍 Raggio Zona Iniziale (metri)</label>
+                    <select id="initialRadius">
+                        <option value="100">100m - Piccola</option>
+                        <option value="200" selected>200m - Media</option>
+                        <option value="500">500m - Grande</option>
+                        <option value="1000">1000m - Molto Grande</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>⏱️ Intervallo Restringimento</label>
+                    <select id="shrinkInterval">
+                        <option value="30">30 secondi</option>
+                        <option value="60" selected>1 minuto</option>
+                        <option value="120">2 minuti</option>
+                        <option value="300">5 minuti</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>📉 Riduzione Zona (%)</label>
+                    <select id="shrinkRate">
+                        <option value="10">10% - Lenta</option>
+                        <option value="15" selected>15% - Media</option>
+                        <option value="20">20% - Veloce</option>
+                    </select>
+                </div>
+
+                <div id="map"></div>
+                <p style="text-align: center; margin: 10px 0; opacity: 0.8;">
+                    📍 Tocca sulla mappa per selezionare il centro della zona
+                </p>
+
+                <button class="btn btn-primary" onclick="startGameCreation()">🚀 Avvia Partita</button>
+                <button class="btn btn-secondary" onclick="showMainScreen()">🔙 Indietro</button>
+            </div>
+        </div>
+
+        <!-- Schermata Unisciti -->
+        <div id="joinScreen" class="screen">
+            <div class="card">
+                <h2>🔗 Unisciti a Partita</h2>
+                
+                <div class="input-group">
+                    <label>🏷️ Nome Giocatore</label>
+                    <input type="text" id="joinPlayerName" placeholder="Inserisci il tuo nome">
+                </div>
+
+                <div class="input-group">
+                    <label>🔑 Codice Partita</label>
+                    <input type="text" id="gameCode" placeholder="Inserisci il codice della partita">
+                </div>
+
+                <button class="btn btn-primary" onclick="joinGame()">🎯 Entra in Partita</button>
+                <button class="btn btn-secondary" onclick="showMainScreen()">🔙 Indietro</button>
+            </div>
+        </div>
+
+        <!-- Schermata Lobby -->
+        <div id="lobbyScreen" class="screen">
+            <div class="card">
+                <h2>🎪 Lobby Partita</h2>
+                
+                <div class="share-section">
+                    <h3>📤 Condividi con gli Amici</h3>
+                    <div class="share-code" id="shareCode">LOADING...</div>
+                    <button class="btn btn-secondary" onclick="shareGame()">📱 Condividi Partita</button>
+                </div>
+
+                <div class="players-list">
+                    <h3>👥 Giocatori Connessi</h3>
+                    <div id="playersList"></div>
+                </div>
+
+                <div class="game-info">
+                    <div class="info-card">
+                        <h3 id="radiusDisplay">200m</h3>
+                        <p>Raggio Iniziale</p>
+                    </div>
+                    <div class="info-card">
+                        <h3 id="intervalDisplay">1min</h3>
+                        <p>Intervallo</p>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="startGame()" id="startGameBtn">🎮 Inizia Partita</button>
+                <button class="btn btn-danger" onclick="leaveGame()">🚪 Abbandona</button>
+            </div>
+        </div>
+
+        <!-- Schermata Gioco -->
+        <div id="gameScreen" class="screen">
+            <div class="zone-timer" id="zoneTimer">
+                ⏱️ Prossimo restringimento: 60s
+            </div>
+
+            <div class="location-status" id="locationStatus">
+                📍 Ottieni la tua posizione...
+            </div>
+
+            <div class="card">
+                <h2>🎯 Partita in Corso</h2>
+                <div id="gameMap" style="height: 400px; border-radius: 15px;"></div>
+                
+                <div class="game-info">
+                    <div class="info-card">
+                        <h3 id="currentRadius">200m</h3>
+                        <p>Raggio Attuale</p>
+                    </div>
+                    <div class="info-card">
+                        <h3 id="playersAlive">0</h3>
+                        <p>Giocatori Vivi</p>
+                    </div>
+                </div>
+
+                <div class="players-list">
+                    <h3>👥 Stato Giocatori</h3>
+                    <div id="gamePlayersList"></div>
+                </div>
+
+                <button class="btn btn-danger" onclick="leaveGame()">🚪 Abbandona Partita</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Stato del gioco
+        let gameState = {
+            currentScreen: 'main',
+            gameId: null,
+            playerId: null,
+            playerName: '',
+            isHost: false,
+            players: [],
+            gameData: null,
+            map: null,
+            gameMap: null,
+            selectedCenter: null,
+            playerLocation: null,
+            gameTimer: null,
+            locationWatcher: null
+        };
+
+        // Inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // Richiedi permessi geolocalizzazione
+            if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        console.log('Geolocalizzazione attivata');
+                    },
+                    error => {
+                        alert('⚠️ Permessi di geolocalizzazione necessari per giocare!');
+                    }
+                );
+            }
+        }
+
+        // Gestione schermate
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            gameState.currentScreen = screenId;
+        }
+
+        function showMainScreen() {
+            showScreen('mainScreen');
+        }
+
+        function showJoinScreen() {
+            showScreen('joinScreen');
+        }
+
+        // Creazione partita
+        function createGame() {
+            showScreen('createScreen');
+            initializeMap();
+        }
+
+        function initializeMap() {
+            // Ottieni posizione corrente
+            if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        
+                        // Crea mappa Leaflet
+                        if (gameState.map) {
+                            gameState.map.remove();
+                        }
+                        
+                        gameState.map = L.map('map').setView([lat, lng], 16);
+                        
+                        // Aggiungi layer mappa
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenStreetMap contributors'
+                        }).addTo(gameState.map);
+                        
+                        // Aggiungi marker posizione corrente
+                        L.marker([lat, lng])
+                            .addTo(gameState.map)
+                            .bindPopup('📍 La tua posizione')
+                            .openPopup();
+                        
+                        // Gestisci click sulla mappa
+                        gameState.map.on('click', function(e) {
+                            selectMapCenter(e.latlng);
+                        });
+                        
+                        // Imposta centro di default
+                        gameState.selectedCenter = { lat: lat, lng: lng };
+                        
+                        // Aggiungi marker del centro selezionato
+                        if (gameState.centerMarker) {
+                            gameState.map.removeLayer(gameState.centerMarker);
+                        }
+                        gameState.centerMarker = L.marker([lat, lng], {
+                            icon: L.divIcon({
+                                html: '🎯',
+                                iconSize: [30, 30],
+                                className: 'center-marker'
+                            })
+                        }).addTo(gameState.map);
+                    },
+                    error => {
+                        console.error('Errore geolocalizzazione:', error);
+                        // Fallback su Milano
+                        const lat = 45.4642;
+                        const lng = 9.1900;
+                        
+                        if (gameState.map) {
+                            gameState.map.remove();
+                        }
+                        
+                        gameState.map = L.map('map').setView([lat, lng], 13);
+                        
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenStreetMap contributors'
+                        }).addTo(gameState.map);
+                        
+                        gameState.map.on('click', function(e) {
+                            selectMapCenter(e.latlng);
+                        });
+                        
+                        gameState.selectedCenter = { lat: lat, lng: lng };
+                        gameState.centerMarker = L.marker([lat, lng], {
+                            icon: L.divIcon({
+                                html: '🎯',
+                                iconSize: [30, 30],
+                                className: 'center-marker'
+                            })
+                        }).addTo(gameState.map);
+                    }
+                );
+            }
+        }
+
+        function selectMapCenter(latlng) {
+            // Aggiorna centro selezionato
+            gameState.selectedCenter = {
+                lat: latlng.lat,
+                lng: latlng.lng
+            };
+            
+            // Rimuovi marker precedente
+            if (gameState.centerMarker) {
+                gameState.map.removeLayer(gameState.centerMarker);
+            }
+            
+            // Aggiungi nuovo marker
+            gameState.centerMarker = L.marker([latlng.lat, latlng.lng], {
+                icon: L.divIcon({
+                    html: '🎯',
+                    iconSize: [30, 30],
+                    className: 'center-marker'
+                })
+            }).addTo(gameState.map);
+            
+            console.log('Centro selezionato:', gameState.selectedCenter);
+        }
+
+        function startGameCreation() {
+            const playerName = document.getElementById('playerName').value.trim();
+            
+            if (!playerName) {
+                alert('⚠️ Inserisci il tuo nome!');
+                return;
+            }
+
+            if (!gameState.selectedCenter) {
+                alert('⚠️ Seleziona un punto sulla mappa!');
+                return;
+            }
+
+            // Crea nuova partita
+            gameState.gameId = generateGameCode();
+            gameState.playerId = generatePlayerId();
+            gameState.playerName = playerName;
+            gameState.isHost = true;
+            
+            gameState.gameData = {
+                id: gameState.gameId,
+                host: gameState.playerId,
+                center: gameState.selectedCenter,
+                initialRadius: parseInt(document.getElementById('initialRadius').value),
+                shrinkInterval: parseInt(document.getElementById('shrinkInterval').value),
+                shrinkRate: parseInt(document.getElementById('shrinkRate').value),
+                currentRadius: parseInt(document.getElementById('initialRadius').value),
+                players: [{
+                    id: gameState.playerId,
+                    name: playerName,
+                    status: 'alive',
+                    location: null
+                }],
+                status: 'lobby',
+                startTime: null
+            };
+
+            gameState.players = gameState.gameData.players;
+            
+            showLobby();
+        }
+
+        // Unisciti a partita
+        function joinGame() {
+            const playerName = document.getElementById('joinPlayerName').value.trim();
+            const gameCode = document.getElementById('gameCode').value.trim().toUpperCase();
+            
+            if (!playerName) {
+                alert('⚠️ Inserisci il tuo nome!');
+                return;
+            }
+
+            if (!gameCode) {
+                alert('⚠️ Inserisci il codice della partita!');
+                return;
+            }
+
+            // Simula join a partita esistente
+            gameState.gameId = gameCode;
+            gameState.playerId = generatePlayerId();
+            gameState.playerName = playerName;
+            gameState.isHost = false;
+
+            // Simula dati partita esistente
+            gameState.gameData = {
+                id: gameCode,
+                center: { lat: 45.4642, lng: 9.1900 },
+                initialRadius: 200,
+                shrinkInterval: 60,
+                shrinkRate: 15,
+                currentRadius: 200,
+                players: [
+                    { id: 'host123', name: 'Host', status: 'alive', location: null },
+                    { id: gameState.playerId, name: playerName, status: 'alive', location: null }
+                ],
+                status: 'lobby'
+            };
+
+            gameState.players = gameState.gameData.players;
+            
+            showLobby();
+        }
+
+        // Lobby
+        function showLobby() {
+            showScreen('lobbyScreen');
+            
+            document.getElementById('shareCode').textContent = gameState.gameId;
+            document.getElementById('radiusDisplay').textContent = gameState.gameData.initialRadius + 'm';
+            document.getElementById('intervalDisplay').textContent = 
+                gameState.gameData.shrinkInterval >= 60 ? 
+                (gameState.gameData.shrinkInterval / 60) + 'min' : 
+                gameState.gameData.shrinkInterval + 's';
+            
+            updatePlayersList();
+            
+            // Mostra pulsante start solo per l'host
+            document.getElementById('startGameBtn').style.display = 
+                gameState.isHost ? 'block' : 'none';
+        }
+
+        function updatePlayersList() {
+            const container = document.getElementById('playersList');
+            container.innerHTML = '';
+            
+            gameState.players.forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player-item';
+                playerDiv.innerHTML = `
+                    <span>👤 ${player.name}</span>
+                    <span class="player-status status-safe">Connesso</span>
+                `;
+                container.appendChild(playerDiv);
+            });
+        }
+
+        function shareGame() {
+            const shareText = `🎯 Unisciti alla mia partita di Hide & Seek Zone!\n\nCodice: ${gameState.gameId}\n\nApri il link: ${window.location.href}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Hide & Seek Zone',
+                    text: shareText
+                });
+            } else {
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert('📋 Link copiato negli appunti!');
+                });
+            }
+        }
+
+        // Avvio gioco
+        function startGame() {
+            if (!gameState.isHost) return;
+            
+            gameState.gameData.status = 'playing';
+            gameState.gameData.startTime = Date.now();
+            
+            showScreen('gameScreen');
+            initializeGameMap();
+            startLocationTracking();
+            startGameTimer();
+        }
+
+        function initializeGameMap() {
+            const mapContainer = document.getElementById('gameMap');
+            mapContainer.innerHTML = `
+                <div style="width: 100%; height: 100%; background: linear-gradient(45deg, #667eea, #764ba2); 
+                           display: flex; align-items: center; justify-content: center; 
+                           border-radius: 15px; position: relative; overflow: hidden;">
+                    <div id="gameZone" style="position: absolute; border: 3px solid #ff4757; 
+                                             border-radius: 50%; width: 80%; height: 80%; 
+                                             animation: pulse 2s infinite;"></div>
+                    <div style="text-align: center; color: white; z-index: 10;">
+                        <div style="font-size: 2rem; margin-bottom: 10px;">🎯</div>
+                        <div>Zona di Gioco</div>
+                        <div id="playerDot" style="position: absolute; top: 50%; left: 50%; 
+                                                 transform: translate(-50%, -50%); font-size: 1.5rem;">🔵</div>
+                    </div>
+                </div>
+            `;
+            
+            updateGameDisplay();
+        }
+
+        function startLocationTracking() {
+            if ('geolocation' in navigator) {
+                gameState.locationWatcher = navigator.geolocation.watchPosition(
+                    position => {
+                        gameState.playerLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        updateLocationStatus();
+                    },
+                    error => {
+                        document.getElementById('locationStatus').innerHTML = 
+                            '❌ Errore geolocalizzazione';
+                    },
+                    { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+                );
+            }
+        }
+
+        function updateLocationStatus() {
+            if (!gameState.playerLocation || !gameState.gameData) return;
+            
+            // Calcola distanza dal centro (simulata)
+            const distance = Math.random() * gameState.gameData.currentRadius;
+            const isInZone = distance <= gameState.gameData.currentRadius;
+            
+            const status = document.getElementById('locationStatus');
+            if (isInZone) {
+                status.innerHTML = `✅ Sei nella zona sicura (${Math.round(distance)}m dal centro)`;
+                status.style.background = 'rgba(46, 213, 115, 0.8)';
+            } else {
+                status.innerHTML = `⚠️ Sei fuori dalla zona! (${Math.round(distance)}m dal centro)`;
+                status.style.background = 'rgba(255, 71, 87, 0.8)';
+            }
+        }
+
+        function startGameTimer() {
+            updateGameTimer();
+            gameState.gameTimer = setInterval(() => {
+                updateGameTimer();
+            }, 1000);
+        }
+
+        function updateGameTimer() {
+            if (!gameState.gameData.startTime) return;
+            
+            const elapsed = Math.floor((Date.now() - gameState.gameData.startTime) / 1000);
+            const nextShrink = gameState.gameData.shrinkInterval - (elapsed % gameState.gameData.shrinkInterval);
+            
+            document.getElementById('zoneTimer').textContent = 
+                `⏱️ Prossimo restringimento: ${nextShrink}s`;
+            
+            // Controlla se è tempo di restringere la zona
+            if (nextShrink === gameState.gameData.shrinkInterval) {
+                shrinkZone();
+            }
+        }
+
+        function shrinkZone() {
+            const reduction = gameState.gameData.currentRadius * (gameState.gameData.shrinkRate / 100);
+            gameState.gameData.currentRadius = Math.max(10, gameState.gameData.currentRadius - reduction);
+            
+            updateGameDisplay();
+            
+            // Effetto visivo
+            const zone = document.getElementById('gameZone');
+            if (zone) {
+                zone.style.animation = 'pulse 0.5s ease-in-out 3';
+            }
+        }
+
+        function updateGameDisplay() {
+            document.getElementById('currentRadius').textContent = 
+                Math.round(gameState.gameData.currentRadius) + 'm';
+            
+            document.getElementById('playersAlive').textContent = 
+                gameState.players.filter(p => p.status === 'alive').length;
+            
+            updateGamePlayersList();
+        }
+
+        function updateGamePlayersList() {
+            const container = document.getElementById('gamePlayersList');
+            container.innerHTML = '';
+            
+            gameState.players.forEach(player => {
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player-item';
+                
+                let statusClass = 'status-safe';
+                let statusText = 'Nella zona';
+                
+                if (Math.random() < 0.3) {
+                    statusClass = 'status-danger';
+                    statusText = 'Fuori zona';
+                }
+                
+                playerDiv.innerHTML = `
+                    <span>👤 ${player.name}</span>
+                    <span class="player-status ${statusClass}">${statusText}</span>
+                `;
+                container.appendChild(playerDiv);
+            });
+        }
+
+        function leaveGame() {
+            if (confirm('🚪 Sei sicuro di voler abbandonare la partita?')) {
+                cleanup();
+                showMainScreen();
+            }
+        }
+
+        function cleanup() {
+            if (gameState.gameTimer) {
+                clearInterval(gameState.gameTimer);
+                gameState.gameTimer = null;
+            }
+            
+            if (gameState.locationWatcher) {
+                navigator.geolocation.clearWatch(gameState.locationWatcher);
+                gameState.locationWatcher = null;
+            }
+            
+            // Reset stato
+            gameState = {
+                currentScreen: 'main',
+                gameId: null,
+                playerId: null,
+                playerName: '',
+                isHost: false,
+                players: [],
+                gameData: null,
+                map: null,
+                gameMap: null,
+                selectedCenter: null,
+                playerLocation: null,
+                gameTimer: null,
+                locationWatcher: null
+            };
+        }
+
+        // Utility functions
+        function generateGameCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 6; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        function generatePlayerId() {
+            return 'player_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Gestione back button
+        window.addEventListener('popstate', function(event) {
+            if (gameState.currentScreen !== 'main') {
+                if (gameState.currentScreen === 'game') {
+                    if (confirm('🚪 Sei sicuro di voler abbandonare la partita?')) {
+                        cleanup();
+                        showMainScreen();
+                    }
+                } else {
+                    showMainScreen();
+                }
+            }
+        });
+
+        // Prevenzione chiusura accidentale durante il gioco
+        window.addEventListener('beforeunload', function(event) {
+            if (gameState.currentScreen === 'game') {
+                event.preventDefault();
+                event.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
